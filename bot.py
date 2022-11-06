@@ -119,6 +119,30 @@ async def get_server_info(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     )
 
 
+async def rename_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    outline: OutlineVPN = context.application.bot_data["outline"]
+
+    _, key_id, name = update.message.text.split(maxsplit=2)
+
+    if key_id.isnumeric():
+        key_id = int(key_id)
+    else:
+        return await update.message.reply_html(
+            "Key ID must be integer and valid!"
+        )
+
+    response = outline.rename_key(key_id, name)
+
+    if response:
+        await update.message.reply_html(
+            f"Key ID <b>{key_id}</b> renamed to -> <b>{name}</b>"
+        )
+    else:
+        await update.message.reply_html(
+            f"Couldn't rename!"
+        )
+
+
 def main() -> None:
     """Start the bot."""
     # Create the Application and pass it your bot's token.
@@ -134,6 +158,8 @@ def main() -> None:
     application.add_handler(CommandHandler("create_key", create_key))
     application.add_handler(CommandHandler("delete_key", delete_key))
     application.add_handler(CommandHandler("get_server_info", get_server_info))
+    application.add_handler(CommandHandler("rename_key", rename_key))
+
     application.add_handler(CommandHandler("commands", commands))
 
     application.run_polling()

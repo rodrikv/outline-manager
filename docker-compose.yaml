@@ -1,0 +1,8 @@
+services:
+  bot:
+    build: .
+    volumes:
+      - .:/code
+    env_file: .env
+    command: sh -c "python bot.py"
+    restart: always

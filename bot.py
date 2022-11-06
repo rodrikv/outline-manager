@@ -19,15 +19,19 @@ import os
 import dotenv
 import logging
 from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes,
+)
 from outline_vpn.outline_vpn import OutlineVPN
 
-from utils import group
+from utils import convert_size, group
 
 
 dotenv.load_dotenv()
 
-ADMIN = os.environ.get("admin", None)
+ADMIN = os.environ.get("admins", None)
 
 # Enable logging
 logging.basicConfig(
@@ -41,40 +45,42 @@ async def commands(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def register_server(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if ADMIN is not None and int(ADMIN) != int(update.message.from_user.id):
+    if ADMIN is not None and str(update.message.from_user.id) not in ADMIN:
         return
 
     commands = context.application.handlers.values()
 
-    await update.message.reply_html(
-        "\n".join(commands)
-    )
+    await update.message.reply_html("\n".join(commands))
+
 
 async def get_servers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if ADMIN is not None and int(ADMIN) != int(update.message.from_user.id):
+    if ADMIN is not None and str(update.message.from_user.id) not in ADMIN:
         return
 
     commands = context.application.handlers.values()
 
-    await update.message.reply_html(
-        "\n".join(commands)
-    )
+    await update.message.reply_html("\n".join(commands))
+
 
 async def get_keys(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if ADMIN is not None and int(ADMIN) != int(update.message.from_user.id):
+    if ADMIN is not None and str(update.message.from_user.id) not in ADMIN:
         return
 
     keys = context.bot_data["outline"].get_keys()
 
-    k_html = list(map(lambda x: f"{x.key_id}) <b>{x.name}</b>: <code>{x.access_url}</code>\n", keys))
+    k_html = list(
+        map(
+            lambda x: f"{x.key_id}) <b>{x.name}</b> ({convert_size(x.used_bytes)}) : <code>{x.access_url}</code>\n",
+            keys,
+        )
+    )
 
     for i in group(k_html, 10):
-        await update.message.reply_html(
-            "\n".join(i)
-        )
+        await update.message.reply_html("\n".join(i))
+
 
 async def create_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if ADMIN is not None and int(ADMIN) != int(update.message.from_user.id):
+    if ADMIN is not None and str(update.message.from_user.id) not in ADMIN:
         return
 
     name = update.message.text.split(maxsplit=1)[1]
@@ -85,13 +91,11 @@ async def create_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"Key <b>{key.name}</b> Created: <code>{key.access_url}</code>"
         )
     except:
-        await update.message.reply_html(
-            "Couldn't create the key!"
-        )
+        await update.message.reply_html("Couldn't create the key!")
 
 
 async def delete_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if ADMIN is not None and int(ADMIN) != int(update.message.from_user.id):
+    if ADMIN is not None and str(update.message.from_user.id) not in ADMIN:
         return
 
     key_id: str = update.message.text.split(maxsplit=1)[1]
@@ -100,18 +104,19 @@ async def delete_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         response = context.application.bot_data["outline"].delete_key(int(key_id))
 
         if response:
-            await update.message.reply_html(
-                f"Key ID <b>{key_id}</b> DELETED!"
-            )
+            await update.message.reply_html(f"Key ID <b>{key_id}</b> DELETED!")
         else:
-            await update.message.reply_html(
-                f"Couldn't delete Key ID <b>{key_id}</b>!"
-            )
+            await update.message.reply_html(f"Couldn't delete Key ID <b>{key_id}</b>!")
 
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message."""
-    await update.message.reply_text(update.message.text)
+async def get_server_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    outline: OutlineVPN = context.application.bot_data["outline"]
+    info = outline.get_server_information()
+    logger.info(info)
+
+    await update.message.reply_html(
+        "\n".join(f"<b>{key}</b>: <pre>{value}</pre>" for key, value in info.items())
+    )
 
 
 def main() -> None:
@@ -123,19 +128,14 @@ def main() -> None:
 
     application.bot_data["outline"] = outline
 
-    # on different commands - answer in Telegram
     application.add_handler(CommandHandler("register_server", register_server))
     application.add_handler(CommandHandler("get_servers", get_servers))
     application.add_handler(CommandHandler("get_keys", get_keys))
     application.add_handler(CommandHandler("create_key", create_key))
     application.add_handler(CommandHandler("delete_key", delete_key))
-
+    application.add_handler(CommandHandler("get_server_info", get_server_info))
     application.add_handler(CommandHandler("commands", commands))
 
-    # on non command i.e message - echo the message on Telegram
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
-
-    # Run the bot until the user presses Ctrl-C
     application.run_polling()
 
 

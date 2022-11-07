@@ -127,9 +127,7 @@ async def rename_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     if key_id.isnumeric():
         key_id = int(key_id)
     else:
-        return await update.message.reply_html(
-            "Key ID must be integer and valid!"
-        )
+        return await update.message.reply_html("Key ID must be integer and valid!")
 
     response = outline.rename_key(key_id, name)
 
@@ -138,9 +136,23 @@ async def rename_key(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             f"Key ID <b>{key_id}</b> renamed to -> <b>{name}</b>"
         )
     else:
+        await update.message.reply_html(f"Couldn't rename!")
+
+
+async def get_transferred_data(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> None:
+    outline: OutlineVPN = context.application.bot_data["outline"]
+
+    try:
+        data = outline.get_transferred_data()
+        logger.info(data)
         await update.message.reply_html(
-            f"Couldn't rename!"
+            f"Total Transferred Data: <b>{convert_size(sum(data['bytesTransferredByUserId'].values()))}</b>"
         )
+    except Exception as e:
+        logger.warning(e)
+        await update.message.reply_html(f"Error Occured!")
 
 
 def main() -> None:
@@ -159,6 +171,9 @@ def main() -> None:
     application.add_handler(CommandHandler("delete_key", delete_key))
     application.add_handler(CommandHandler("get_server_info", get_server_info))
     application.add_handler(CommandHandler("rename_key", rename_key))
+    application.add_handler(
+        CommandHandler("get_transferred_data", get_transferred_data)
+    )
 
     application.add_handler(CommandHandler("commands", commands))
 

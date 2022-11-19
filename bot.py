@@ -8,6 +8,7 @@ from telegram.ext import (
     ContextTypes,
 )
 from outline_vpn.outline_vpn import OutlineVPN
+from manager.db.influxdb import DataUsageDB
 
 from utils import convert_size, group
 
@@ -140,14 +141,33 @@ async def get_transferred_data(
         await update.message.reply_html(f"Error Occured!")
 
 
+def collect_data(context: ContextTypes.DEFAULT_TYPE):
+    db: DataUsageDB = context.application.bot_data["db"]
+
+    keys: OutlineVPN = context.bot_data["outline"].get_keys()
+
+    for key in keys:
+        db.write(key.key_id, key.used_bytes)
+
+
+def collect_usage(job_queue):
+    job_queue.run_repeating(collect_data, interval=60)
+
+
 def main() -> None:
     """Start the bot."""
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(os.environ["TOKEN"]).build()
 
     outline = OutlineVPN(os.environ["api_url"], cert_sha256=os.environ["certSha256"])
+    db = DataUsageDB(
+        os.environ["url"],
+        os.environ["DOCKER_INFLUXDB_INIT_ADMIN_TOKEN"],
+        os.environ["DOCKER_INFLUXDB_INIT_ORG"],
+    )
 
     application.bot_data["outline"] = outline
+    application.bot_data["db"] = db
 
     application.add_handler(CommandHandler("register_server", register_server))
     application.add_handler(CommandHandler("get_servers", get_servers))
@@ -161,6 +181,7 @@ def main() -> None:
     )
 
     application.add_handler(CommandHandler("commands", commands))
+    collect_usage(application.job_queue)
 
     application.run_polling()
 

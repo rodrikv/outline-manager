@@ -4,9 +4,6 @@ services:
     volumes:
       - .:/code
     env_file: .env
-    environment:
-      - url=http://influxdb:8086
-    command: sh -c "python bot.py"
     restart: always
     depends_on:
       - influxdb

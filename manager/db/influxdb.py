@@ -1,3 +1,4 @@
+from typing import List
 from influxdb_client.client.write_api import SYNCHRONOUS
 from influxdb_client import WritePrecision, InfluxDBClient, Point
 from datetime import datetime
@@ -17,6 +18,32 @@ class DataUsageDB:
             self.__client = InfluxDBClient(url=self.url, token=self.token, org=self.org)
 
         return self.__client
+
+    @staticmethod
+    def create_point(
+        measurement: str,
+        tags: dict,
+        fields: dict,
+        time=None,
+        write_precision: WritePrecision = WritePrecision.MS,
+    ):
+        if not isinstance(measurement, str):
+            raise TypeError("measurement must be str")
+        if not isinstance(tags, dict):
+            raise TypeError("tags must be dict")
+        if not isinstance(fields, dict):
+            raise TypeError("fields must be dict")
+        if not time:
+            time = datetime.utcnow()
+
+        point_dict = {}
+
+        point_dict["measurement"] = measurement
+        point_dict["tags"] = tags
+        point_dict["fields"] = fields
+        point_dict["time"] = time
+
+        return Point.from_dict(point_dict, write_precision=write_precision)
 
     def write(self, key_id, usage, org=None):
         p = (

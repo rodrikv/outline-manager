@@ -144,14 +144,25 @@ async def get_transferred_data(
 def collect_data(context: ContextTypes.DEFAULT_TYPE):
     db: DataUsageDB = context.application.bot_data["db"]
 
-    keys: OutlineVPN = context.bot_data["outline"].get_keys()
+    outline: OutlineVPN = context.bot_data["outline"]
+    keys = outline.get_keys()
 
     for key in keys:
         db.write(key.key_id, key.used_bytes)
 
+def collect_all_usage(context: ContextTypes.DEFAULT_TYPE):
+    db: DataUsageDB = context.application.bot_data["db"]
+    outline: OutlineVPN = context.bot_data["outline"]
+
+    transferred_data = outline.get_transferred_data()
+    all_usage = sum(transferred_data['bytesTransferredByUserId'].values())
+
+    db.write(100, all_usage)
+
 
 def collect_usage(job_queue):
     job_queue.run_repeating(collect_data, interval=60)
+    job_queue.run_repeating(collect_all_usage, interval=60)
 
 
 def main() -> None:

@@ -23,3 +23,4 @@ services:
       - ./config:/etc/influxdb2
     ports:
       - 8086:8086
+    restart: always
